@@ -1,0 +1,51 @@
+name: defense-news-bot
+
+on:
+  schedule:
+    # 10분마다 실행 (cron은 UTC 기준이며, 깃허브 부하에 따라 몇 분 지연될 수 있음)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}   # Actions 탭에서 '수동 실행' 버튼도 제공
+
+# seen.json 을 리포지토리에 다시 커밋하려면 쓰기 권한이 필요
+permissions:
+  contents: write
+
+# 동시에 두 번 돌지 않도록(겹침 방지)
+concurrency:
+  group: defense-news-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run bot
+        env:
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python defense_news_bot_naver.py
+
+      - name: Commit seen.json if changed
+        run: |
+          if [ -n "$(git status --porcelain seen.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add seen.json
+            git commit -m "update seen.json [skip ci]"
+            git push
+          else
+            echo "seen.json 변경 없음 - 커밋 생략"
+          fi
