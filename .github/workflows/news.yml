@@ -38,13 +38,15 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python defense_news_bot_naver.py
 
-      - name: Commit seen.json if changed
+  - name: Commit seen.json if changed
         run: |
           if [ -n "$(git status --porcelain seen.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add seen.json
             git commit -m "update seen.json [skip ci]"
+            # push가 거부되면 최신을 당겨와 다시 시도 (충돌 자동 회피)
+            git pull --rebase --autostash origin main
             git push
           else
             echo "seen.json 변경 없음 - 커밋 생략"
