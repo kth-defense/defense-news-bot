@@ -10,7 +10,7 @@ on:
 permissions:
   contents: write
 
-# 동시에 두 번 돌지 않도록(겹침 방지)
+# 동시에 두 번 돌지 않도록(겹침 방지) → push 충돌 예방
 concurrency:
   group: defense-news-bot
   cancel-in-progress: false
@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -38,7 +38,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python defense_news_bot_naver.py
 
-- name: Commit seen.json if changed
+      - name: Commit seen.json if changed
         run: |
           if [ -n "$(git status --porcelain seen.json)" ]; then
             git config user.name "github-actions[bot]"
