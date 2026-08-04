@@ -3,7 +3,7 @@ name: defense-news-bot
 on:
   schedule:
     # 10분마다 실행 (cron은 UTC 기준이며, 깃허브 부하에 따라 몇 분 지연될 수 있음)
-    - cron: "*/10 * * * *"
+    - cron: "7,17,27,37,47,57 * * * *"
   workflow_dispatch: {}   # Actions 탭에서 '수동 실행' 버튼도 제공
 
 # seen.json 을 리포지토리에 다시 커밋하려면 쓰기 권한이 필요
