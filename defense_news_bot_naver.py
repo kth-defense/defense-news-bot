@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-국내 방산 뉴스 자동 알림 텔레그램 봇 (네이버 검색 API 버전)
+국내 방산 뉴스 자동 알림 텔레그램 봇 (네이버 검색 API 버전 · 제목만)
 - 네이버 뉴스 검색 API에서 키워드별 '최신순' 기사 수집  → 적시성 확보
-- 제목 + 주요 내용 요약(스니펫) + 발행 시각 + 링크를 함께 전송
+- 제목 + 발행 시각 + 링크를 전송 (요약 없음)
 - originallink(언론사 원본 URL) 기준으로 중복 제거
 - pubDate(발행 시각)로 너무 오래된 기사는 걸러냄
 - seen.json 파일로 중복 전송 방지
@@ -14,8 +14,9 @@
   2) 텔레그램 BotFather로 봇 토큰 발급, chat_id 확인
   3) pip install requests
 
-실행:
-  python defense_news_bot_naver.py
+GitHub Actions에서 돌릴 때는 아래 4개 값을 파일에 넣지 말고
+저장소 Secrets(NAVER_CLIENT_ID / NAVER_CLIENT_SECRET / TELEGRAM_TOKEN /
+TELEGRAM_CHAT_ID)로 등록하면 됨. (placeholder는 그대로 둬도 됨)
 """
 
 import os
@@ -29,7 +30,7 @@ from email.utils import parsedate_to_datetime
 import requests
 
 # ─────────────────────────────────────────────────────────────
-# 설정 (여기만 수정하면 됩니다)
+# 설정
 # ─────────────────────────────────────────────────────────────
 NAVER_CLIENT_ID = os.environ.get("NAVER_CLIENT_ID", "여기에_네이버_Client_ID")
 NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "여기에_네이버_Client_Secret")
@@ -51,7 +52,6 @@ KEYWORDS = [
 DISPLAY = 20            # 키워드당 네이버에서 받아올 기사 수 (최대 100)
 MAX_PER_RUN = 5         # 키워드당 한 번에 보낼 최대 새 기사 수 (도배 방지)
 MAX_AGE_HOURS = 48      # 이 시간보다 오래된 기사는 무시 (0 이면 시간 제한 없음)
-SUMMARY_MAXLEN = 220    # 주요 내용 요약을 이 글자수까지만 표시 (너무 길면 잘라냄)
 SEEN_FILE = "seen.json"
 REQUEST_TIMEOUT = 20    # 초
 
@@ -78,17 +78,9 @@ def save_seen(seen):
 
 
 def clean_html(raw):
-    """네이버가 주는 <b> 태그와 HTML 엔티티(&quot; 등)를 제거해 깔끔한 텍스트로."""
-    no_tags = re.sub(r"<[^>]+>", "", raw)      # 모든 태그 제거
+    """네이버가 주는 <b> 태그와 HTML 엔티티(&quot; 등)를 제거."""
+    no_tags = re.sub(r"<[^>]+>", "", raw)
     return html.unescape(no_tags).strip()
-
-
-def shorten(text, maxlen):
-    """너무 긴 요약은 maxlen 글자까지만 남기고 … 붙임."""
-    text = text.strip()
-    if len(text) <= maxlen:
-        return text
-    return text[:maxlen].rstrip() + "…"
 
 
 def parse_pubdate(pubdate_str):
@@ -162,10 +154,6 @@ def format_message(keyword, item):
     title = html.escape(clean_html(item.get("title", "")))
     url = article_url(item)
 
-    # ★ 주요 내용 요약(네이버 검색 스니펫)
-    summary_raw = clean_html(item.get("description", ""))
-    summary = html.escape(shorten(summary_raw, SUMMARY_MAXLEN))
-
     # 발행 시각(한국시간)
     dt = parse_pubdate(item.get("pubDate", ""))
     when = ""
@@ -173,13 +161,7 @@ def format_message(keyword, item):
         kst = dt.astimezone(timezone(timedelta(hours=9)))
         when = f"\n🕒 {kst.strftime('%Y-%m-%d %H:%M')}"
 
-    lines = [f"🛡 <b>[{html.escape(keyword)}]</b>", title]
-    if summary:
-        lines.append(f"\n📄 {summary}")
-    if when:
-        lines.append(when.strip())
-    lines.append(url)
-    return "\n".join(lines)
+    return f"🛡 <b>[{html.escape(keyword)}]</b>\n{title}{when}\n{url}"
 
 
 # ─────────────────────────────────────────────────────────────
